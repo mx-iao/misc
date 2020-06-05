@@ -1,4 +1,4 @@
-```
+```python
 src = ScriptRunConfig(source_directory=".", 
                       script='train.py', 
                       arguments=['--num-epochs': '30'], 
@@ -15,7 +15,7 @@ exp = Experiment(workspace=ws, name='my-experiment')
 run = exp.submit(src)
 ```
 
-```
+```python
 tf_est= TensorFlow(source_directory=".",
                    compute_target=compute_target,
                    script_params={"--num-epochs": 30},

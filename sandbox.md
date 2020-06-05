@@ -28,3 +28,17 @@ tf_est= TensorFlow(source_directory=".",
 
 run = exp.submit(tf_est)
 ```
+
+```json
+{ 
+    "cluster": { 
+        "ps": [ "host0:2222", "host1:2222" ], 
+        "worker": [ "host3:2222", "host4:2222" ] 
+    }, 
+    "task": { 
+        "type": "worker", 
+        "index": 1 
+    }, 
+    "environment": "cloud" 
+}
+```

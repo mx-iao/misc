@@ -49,6 +49,8 @@ pipeline_run = experiment.submit(pipeline)
 - `RunConfiguration` class should become an implementation detail and removed from docs/tutorials (as much as possible)
 - HyperDriveConfig can already take a ScriptRunConfig object
 - Make ScriptRunConfig (and PythonScriptStep) the recommended run submission path (over Estimator and EstimatorStep)
+- Add robust validation (either at ScripRunConfig construction time or job submission time) to validate the combination of arguments specified by user.
+- Update documentation, notebooks, TSGs
 
 ### ScriptRunConfig constructor
 ```python

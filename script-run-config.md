@@ -1,5 +1,11 @@
 ## Current experience
 
+### Problem statement
+Today's experience for using ScriptRunConfig requires the user to specify much of the required information by accessing the RunConfiguration property of a ScriptRunConfig object themselves. In addition, most of the PipelineSteps take in a RunConfiguration object and not a ScriptRunConfig object, creating a disconnect between standalone runs and Pipeline runs. Finally, the presence of having both ScriptRunConfig and Estimator options for configuring runs (both of which have their cons) has been a neverending source of confusion to customers.
+
+### Goal
+Until we are ready to ship the long-term work for Components in vNext, we will do interim work to improve the existing experience. We will dedupe ScriptRunConfig and Estimators by improving the ScriptRunConfig creation experience. We should be able to do so without introducing any breaking changes. Recommended paths for configuring training jobs should not require user to use RunConfiguration themselves. In addition, we will make it easier and more streamlined to configure and submit jobs from the CLI, and move from standalone runs to Pipeline runs.
+
 ### Example:
 ```python
 src = ScriptRunConfig(source_directory=project_folder, 

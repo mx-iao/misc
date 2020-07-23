@@ -6,20 +6,20 @@ Today's experience for using ScriptRunConfig requires the user to specify much o
 ### Goal
 Until we are ready to ship the long-term work for Components in vNext, we will do interim work to improve the existing experience. We will dedupe ScriptRunConfig and Estimators by improving the ScriptRunConfig creation experience. We should be able to do so without introducing any breaking changes. Recommended paths for configuring training jobs should not require user to use RunConfiguration themselves. In addition, we will make it easier and more streamlined to configure and submit jobs from the CLI, and move from standalone runs to Pipeline runs.
 
-### Example:
+### Example: E2E
 ```python
 src = ScriptRunConfig(source_directory=project_folder, 
                       script='train.py', 
-                      arguments=['--num_epochs': '30'], 
+                      arguments=['--learning-rate': '0.0001'], 
                       run_config=RunConfiguration(framework='python', communicator='Mpi'))
                                 
-pt_env = Environment.get(ws, name='AzureML-PyTorch-1-3-GPU'))
+pt_env = Environment.get(ws, name='AzureML-PyTorch-1.6-GPU'))
 
 src.run_config.environment = pt_env
-src.run_config.node_count = 2
-src.run_config.target = compute_target
+src.run_config.node_count = 4
+src.run_config.target = gpu-cluster
 src.run_config.data = Data(data_location = DataLocation(dataset=dataset), 
-                           mechanism='direct', 
+                           mechanism='mount', 
                            environment_variable_name='cifar10')
 
 # as an individual run
@@ -38,18 +38,17 @@ pipeline = Pipeline(ws, steps=[train_step])
 pipeline_run = experiment.submit(pipeline)
 ```
 
-
-
 ## Proposed experience
 ### To do
 - Improve [ScriptRunConfig](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.scriptrunconfig?view=azure-ml-py) constructor
 - Add support for specifying ScriptRunConfig from YAML, e.g. `ScriptRunConfig.from_yaml(file_name='run_config.yml')`
 - Update run submission CLI (`az ml run submit-script`) to support ScriptRunConfig YAML
-- Update PythonScriptStep to take in a `ScriptRunConfig` object directly instead of a `RunConfiguration` object
-- `RunConfiguration` class should become an implementation detail and removed from docs/tutorials (as much as possible)
+- `RunConfiguration` class should become an implementation detail and removed from docs/tutorials for as many scenarios as possible
+- Updates to `MpiConfiguration`, `TensorFlowConfiguration`, `PyTorchConfiguration` (add)
 - HyperDriveConfig can already take a ScriptRunConfig object
+- Add robust validation for the combination of arguments specified by user
+- Update PythonScriptStep to take in a `ScriptRunConfig` object directly instead of a `RunConfiguration` object
 - Make ScriptRunConfig (and PythonScriptStep) the recommended run submission path (over Estimator and EstimatorStep)
-- Add robust validation (either at ScripRunConfig construction time or job submission time) to validate the combination of arguments specified by user.
 - Update documentation, notebooks, TSGs
 
 ### ScriptRunConfig constructor
@@ -88,25 +87,93 @@ class ScriptRunConfig(ABC):
 | max_run_duration_seconds | int | The maximum time allowed for the run. The system will attempt to automatically cancel the run if it took longer than this value. |
 
 
-### Example:
+### Example: Scikit-learn
 ```python
-pt_env = Environment.get(ws, name='AzureML-PyTorch-1-3-GPU'))
+sklearn_env = Environment.get(ws, name='AzureML-Scikit-learn-0.23.1')
+sklearn_runconfig = ScriptRunConfig(source_directory=project_folder,
+				    command=['python', 'train.py', '--data-folder', dataset.as_download()],
+				    compute_target=cpu-cluster,
+				    environment=sklearn_env)
+
+run = experiment.submit(sklearn_runconfig)
+```
+
+### Example: TensorFlow
+```python
+tf_env = Environment.get(ws, name='AzureML-TensorFlow-2.1-GPU')
+tf_runconfig = ScriptRunConfig(source_directory=project_folder,
+			       command=['python', 'train.py', '--num-epochs', '1000'],
+			       compute_target=gpu-cluster,
+			       environment=tf_env,
+			       job_config=TensorflowConfiguration(worker_count=4),
+			       node_count=4)
+
+run = experiment.submit(tf_runconfig)
+```
+
+### Example: PyTorch
+```python
+pt_env = Environment.get(ws, name='AzureML-PyTorch-1.6-GPU')
+pt_runconfig = ScriptRunConfig(source_directory=project_folder,
+			       command=['python', 'train.py', '--dist-backend', 'nccl', '--dist-url', '$AZ_BATCHAI_PYTORCH_INIT_METHOD', '--rank', '$AZ_BATCHAI_TASK_INDEX'],
+			       compute_target=gpu-cluster,
+			       environment=pt_env,
+			       job_config=PyTorchConfiguration(communication_backend='NCCL'),
+			       node_count=4)
+
+run = experiment.submit(pt_runconfig)
+```
+
+### Example: MPI
+```python
+pt_env = Environment.get(ws, name='AzureML-PyTorch-1.6-GPU')
+horovd_runconfig = ScriptRunConfig(source_directory=project_folder,
+				   command=['python', 'train.py', '--learning-rate', 0.001],
+				   compute_target=gpu-cluster,
+				   environment=pt_env,
+				   job_config=MpiConfiguration(process_count_per_node=2),
+				   node_count=4)
+
+run = experiment.submit(horovod_runconfig)
+```
+
+### Example: HyperDrive
+```python
+param_sampling = RandomParameterSampling( {
+        'learning_rate': uniform(0.0005, 0.005)
+    }
+)
+
+early_termination_policy = BanditPolicy(slack_factor=0.15, evaluation_interval=1, delay_evaluation=10)
+
+hd_config = HyperDriveConfig(run_config=horovod_runconfig,
+			     hyperparameter_sampling=param_sampling, 
+			     policy=early_termination_policy,
+			     primary_metric_name='best_val_acc',
+			     primary_metric_goal=PrimaryMetricGoal.MAXIMIZE,
+			     max_total_runs=20,
+			     max_concurrent_runs=4)
+			     
+hd_run = experiment.submit(hd_config)
+```
+
+### Example: Pipeline
+```python
+pt_env = Environment.get(ws, name='AzureML-PyTorch-1.6-GPU'))
 src = ScriptRunConfig(source_directory=project_folder,
-                        compute_target=compute_target,
-                        entry_script='train.py',
-                        arguments=['--num_epochs': '30'],
-                        node_count=2,
-                        communicator=MPI(process_count_per_node=4),
-                        environment=pt_env,
-                        inputs=[dataset.as_named_input('cifar10')])
+		      command=['python', 'train.py', '--learning-rate', 0.001],
+                      compute_target=gpu-cluster,
+		      node_count=4,
+		      environment=pt_env,
+                      job_config=MpiConfiguration(process_count_per_node=2)
+		      inputs=[dataset.as_named_input('cifar10')])
 
 # as an individual run
 run = experiment.submit(src)
 
 # as a pipeline run
 train_step = PythonScriptStep(name='train',
-                              script_run_config=src,
-                              inputs=[dataset.as_named_input('cifar10')])
+                              script_run_config=src)
                               
 pipeline = Pipeline(ws, steps=[train_step])
 pipeline_run = experiment.submit(pipeline)

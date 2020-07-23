@@ -1,12 +1,12 @@
 ## Current experience
 
 ### Problem statement
-Today's experience for using ScriptRunConfig requires the user to specify much of the required information by accessing the RunConfiguration property of a ScriptRunConfig object themselves. In addition, most of the PipelineSteps take in a RunConfiguration object and not a ScriptRunConfig object, creating a disconnect between standalone runs and Pipeline runs. Finally, the presence of having both ScriptRunConfig and Estimator options for configuring runs (both of which have their cons) has been a neverending source of confusion to customers.
+Today's experience for using ScriptRunConfig requires the user to specify much of the required information by accessing the RunConfiguration property of a ScriptRunConfig object themselves. In addition, most of the PipelineSteps take in a RunConfiguration object and not a ScriptRunConfig object, creating a disconnect between standalone runs and Pipeline runs. Finally, the presence of having both ScriptRunConfig and Estimator options for configuring runs (both of which have their cons) has been a neverending source of confusion for customers (particularly now that introduction of EMS and curated environments has made Estimators basically redundant).
 
 ### Goal
-Until we are ready to ship the long-term work for Components in vNext, we will do interim work to improve the existing experience. We will dedupe ScriptRunConfig and Estimators by improving the ScriptRunConfig creation experience. We should be able to do so without introducing any breaking changes. Recommended paths for configuring training jobs should not require user to use RunConfiguration themselves. In addition, we will make it easier and more streamlined to configure and submit jobs from the CLI, and move from standalone runs to Pipeline runs.
+Until we are ready to ship the long-term work for Components in vNext, we will do interim work to improve the existing experience. We will dedupe ScriptRunConfig and Estimators by improving the ScriptRunConfig creation experience and replacing Estimators. We should be able to do so without introducing any breaking changes. Recommended paths for configuring training jobs should not require user to use RunConfiguration themselves. With these improvements, we can also stop maintaining and updating the set of private framework images that we currently have. In addition, we will make it easier and more streamlined to configure and submit jobs from the CLI, and move from standalone runs to Pipeline runs.
 
-### Example: E2E
+### Example: current E2E experience
 ```python
 src = ScriptRunConfig(source_directory=project_folder, 
                       script='train.py', 
@@ -36,6 +36,28 @@ train_step = PythonScriptStep(script_name=src.script,
                               
 pipeline = Pipeline(ws, steps=[train_step])
 pipeline_run = experiment.submit(pipeline)
+```
+
+### Example: current TF experience
+```python
+src = ScriptRunConfig(source_directory=project_folder, 
+                      script='train.py', 
+                      arguments=['--num-epochs': '1000'], 
+                      run_config=RunConfiguration(framework='Tensorflow', communicator='ParameterServer'))
+                                
+tf_env = Environment.get(ws, name='AzureML-TensorFlow-1.14-GPU'))
+
+tensorflow_configuration = TensorFlowConfiguration()	
+tensorflow_configuration.worker_count = 2
+tensorflow_configuration.parameter_server_count = 2
+
+src.run_config.environment = tf_env
+src.run_config.node_count = 4
+src.run_config.target = gpu-cluster
+src.run_config.tensorflow = tensorflow_configuration
+
+# as an individual run
+run = experiment.submit(src)
 ```
 
 ## Proposed experience

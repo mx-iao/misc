@@ -149,12 +149,12 @@ run = experiment.submit(pt_runconfig)
 ### Example: MPI
 ```python
 pt_env = Environment.get(ws, name='AzureML-PyTorch-1.6-GPU')
-horovd_runconfig = ScriptRunConfig(source_directory=project_folder,
-				   command=['python', 'train.py', '--learning-rate', 0.001],
-				   compute_target=gpu-cluster,
-				   environment=pt_env,
-				   job_config=MpiConfiguration(process_count_per_node=2),
-				   node_count=4)
+horovod_runconfig = ScriptRunConfig(source_directory=project_folder,
+				    command=['python', 'train.py', '--learning-rate', 0.001],
+				    compute_target=gpu-cluster,
+				    environment=pt_env,
+				    job_config=MpiConfiguration(process_count_per_node=2),
+				    node_count=4)
 
 run = experiment.submit(horovod_runconfig)
 ```

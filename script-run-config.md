@@ -165,7 +165,7 @@ src = ScriptRunConfig(source_directory=project_folder,
                       compute_target=gpu-cluster,
 		      node_count=4,
 		      environment=pt_env,
-                      job_config=MpiConfiguration(process_count_per_node=2)
+                      job_config=MpiConfiguration(process_count_per_node=2),
 		      inputs=[dataset.as_named_input('cifar10')])
 
 # as an individual run

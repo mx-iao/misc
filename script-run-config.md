@@ -200,3 +200,22 @@ train_step = PythonScriptStep(name='train',
 pipeline = Pipeline(ws, steps=[train_step])
 pipeline_run = experiment.submit(pipeline)
 ```
+
+### Example: Reinforcement Learning (based on existing preview)
+```python
+worker_config = WorkerConfiguration(compute_target=worker-cluster,
+				    node_count=4,
+				    environment=worker_env)
+				    
+rl_config = RLConfiguration(worker_configuration=worker_config, 
+			    rl_framework=Ray(version='0.8.3'),
+			    simulator_config=None)
+
+rl_runconfig = ScriptRunConfig(source_directory=project_folder,
+			       command=['python', 'pong_rllib.py', '--run', 'IMPALA', '--env', '$PongNoFrameskip-v4', '--config', '\'{"num_gpus": 1, "num_workers": 13}\'', '--stop', '\'{"episode_reward_mean": 18, "time_total_s": 3600}\''],
+			       compute_target=head-cluster,
+			       environment=gpu_pong_env,
+			       job_config=rl_config)
+
+run = experiment.submit(rl_runconfig)
+```

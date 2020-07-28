@@ -62,16 +62,19 @@ run = experiment.submit(src)
 
 ## Proposed experience
 ### To do
+**P0**
 - Improve [ScriptRunConfig](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.scriptrunconfig?view=azure-ml-py) constructor
-- Add support for specifying ScriptRunConfig from YAML, e.g. `ScriptRunConfig.from_yaml(file_name='run_config.yml')`
-- Update run submission CLI (`az ml run submit-script`) to support ScriptRunConfig YAML
-- `RunConfiguration` class should become an implementation detail and removed from docs/tutorials for as many scenarios as possible
-- Updates to `MpiConfiguration`, `TensorFlowConfiguration`, `PyTorchConfiguration` (add)
-- HyperDriveConfig can already take a ScriptRunConfig object
-- Add robust validation for the combination of arguments specified by user
-- Update PythonScriptStep to take in a `ScriptRunConfig` object directly instead of a `RunConfiguration` object
-- Make ScriptRunConfig (and PythonScriptStep) the recommended run submission path (over Estimator and EstimatorStep)
-- Update documentation, notebooks, TSGs
+- Update `MpiConfiguration`, `TensorFlowConfiguration`, add `PyTorchConfiguration`
+- Add validation for the combination of arguments specified by user
+- Update documentation, notebooks, TSGs and make ScriptRunConfig (and PythonScriptStep) the recommended run submission path over Estimator (and EstimatorStep) -- `RunConfiguration` class should become an implementation detail and removed from docs/tutorials for as many scenarios as possible
+
+**P1**
+- Will continue to use RunConfiguration for serialization/deserialization for SDK v1 -- validate that this continues to work for run submission CLI.
+
+**P2**
+- Update PythonScriptStep (and other PipelineSteps?) to take in a `ScriptRunConfig` object directly instead of a `RunConfiguration` object and not require user to provide the flat list of parameters to the Step constructors that are redundant with the ScriptRunConfig object.
+- Once Execution Service/Pipelines team adds support for generic command, add `command` parameter to ScriptRunConfig (e.g. `command=['python', 'train.py', '--arg', 'argvalue']`). This also aligns with vNext.
+
 
 ### ScriptRunConfig constructor
 ```python
@@ -82,7 +85,8 @@ class ScriptRunConfig(ABC):
 	"""
 	def __init__(self,
                   source_directory,
-                  command,
+                  script,
+		  arguments=None,
                   compute_target=None,
                   inputs=None,
                   environment=None, 
@@ -98,7 +102,8 @@ class ScriptRunConfig(ABC):
 | name | type | description |
 | ---- | ---- | ----------- |
 | source_directory | str | A local directory containing experiment configuration and code files needed for a training job. |
-| command | str or list(str) | The command to run on the compute target including the command-line arguments to pass to the in.` |
+| script | str | The file path relative to the `source_directory` of the script to be run. |
+| arguments | list or str | Optional command-line arguments to pass to the `script`. |
 | compute_target | str or ComputeTarget | The compute target where training will happen. This can either be a ComputeTarget object or the string "local". |
 | inputs | list(DataReference or DatasetConsumptionConfig) | List of DataReference or DatasetConsumptionConfig for datasets to use as inputs for run. |
 | environment | Environment | The environment to use for the run. If no environment is specified, `DEFAULT_CPU_IMAGE` will be used as the Docker image for the run. |
@@ -201,21 +206,6 @@ pipeline = Pipeline(ws, steps=[train_step])
 pipeline_run = experiment.submit(pipeline)
 ```
 
-### Example: Reinforcement Learning (based on existing preview)
-```python
-worker_config = WorkerConfiguration(compute_target=worker-cluster,
-				    node_count=4,
-				    environment=worker_env)
-				    
-rl_config = RLConfiguration(worker_configuration=worker_config, 
-			    rl_framework=Ray(version='0.8.3'),
-			    simulator_config=None)
+### Scenario: Reinforcement Learning
+Based on discussions during 7/27 spec review: since RL uses its own service (similar to HyperDrive), it would probably make the most sense for the team to add an RLConfig (similar to the HyperDriveConfig) that gets passed to `experiment.submit()` since they are not going through ScriptRunConfig today. Depending on when RL is targeted to GA, it should either align to the v1 runconfig route, or align with Modules/Components if it coincides with the vNext release.
 
-rl_runconfig = ScriptRunConfig(source_directory=project_folder,
-			       command=['python', 'pong_rllib.py', '--run', 'IMPALA', '--env', '$PongNoFrameskip-v4', '--config', '\'{"num_gpus": 1, "num_workers": 13}\'', '--stop', '\'{"episode_reward_mean": 18, "time_total_s": 3600}\''],
-			       compute_target=head-cluster,
-			       environment=gpu_pong_env,
-			       job_config=rl_config)
-
-run = experiment.submit(rl_runconfig)
-```

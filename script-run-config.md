@@ -88,11 +88,9 @@ class ScriptRunConfig(ABC):
                   script,
 		  arguments=None,
                   compute_target=None,
-                  inputs=None,
                   environment=None, 
                   job_config=None, 
                   node_count=1,
-                  source_directory_data_store=None,
                   resume_from=None,
                   max_run_duration_seconds=3600*24*30):
 		pass
@@ -105,11 +103,9 @@ class ScriptRunConfig(ABC):
 | script | str | The file path relative to the `source_directory` of the script to be run. |
 | arguments | list or str | Optional command-line arguments to pass to the `script`. |
 | compute_target | str or ComputeTarget | The compute target where training will happen. This can either be a ComputeTarget object or the string "local". |
-| inputs | list(DataReference or DatasetConsumptionConfig) | List of DataReference or DatasetConsumptionConfig for datasets to use as inputs for run. |
 | environment | Environment | The environment to use for the run. If no environment is specified, `DEFAULT_CPU_IMAGE` will be used as the Docker image for the run. |
 | job_config | TensorFlowConfiguration, MpiConfiguration, PyTorchConfiguration, ParallelTaskConfiguration | For jobs that require additional job-specific configurations, e.g. distributed training jobs. |
 | node_count | int | The number of nodes to use for the job. |
-| source_directory_data_store | Datastore | The backing datastore for the project share. |
 | resume_from | DataPath | The DataPath containing the checkpoint or model files from which to resume the experiment. |
 | max_run_duration_seconds | int | The maximum time allowed for the run. The system will attempt to automatically cancel the run if it took longer than this value. |
 
@@ -188,12 +184,11 @@ hd_run = experiment.submit(hd_config)
 ```python
 pt_env = Environment.get(ws, name='AzureML-PyTorch-1.6-GPU'))
 src = ScriptRunConfig(source_directory=project_folder,
-		      command=['python', 'train.py', '--learning-rate', 0.001],
+		      command=['python', 'train.py', '--learning-rate', 0.001, '--data', dataset.as_named_input('cifar10')],
                       compute_target=gpu-cluster,
 		      node_count=4,
 		      environment=pt_env,
-                      job_config=MpiConfiguration(process_count_per_node=2),
-		      inputs=[dataset.as_named_input('cifar10')])
+                      job_config=MpiConfiguration(process_count_per_node=2))
 
 # as an individual run
 run = experiment.submit(src)

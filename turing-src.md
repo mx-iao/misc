@@ -81,3 +81,86 @@ finetune_src = ScriptRunConfig(source_directory=source_directory,
                                environment=myenv,
                                distributed_job_config=mpi)
 ```
+
+## Example: Glue-SST
+https://github.com/microsoft/Turing-NLR/blob/main/notebooks/GLUE-SST.ipynb
+
+### With 1.13.0
+```python
+mpi = MpiConfiguration()
+mpi.process_count_per_node = 4
+
+model_checkpoint_path = "tnlrv3-base.pt"
+dataset_path = "glue_data/SST-2/"
+output_path = "outputs/glue-outputs/"
+
+args = ["--model_name_or_path", ds.path(model_checkpoint_path).as_download(),
+        "--task_name", "sst-2",
+        "--tokenizer_name", "./tnlr/tokenizer/tnlr-base-uncased-vocab.txt",
+        "--config_name", "./tnlr/config/tnlr-base-uncased-config.json",
+        "--do-train",
+        "--do-lower-case",
+        "--evaluate_during_training",
+        "--data_dir", default_ds.path(dataset_path).as_mount(),
+        "--output_dir", default_ds.path(output_path).as_mount(),
+        "--max_seq_length", 128,
+        "--per_gpu_train_batch_size", 32,
+        "--learning_rate", 7e-6,
+        "--num_train_epochs", 15.0,
+        "--weight_decay", 0.01,
+        "--fp16",
+        "--fp16_opt_level", "O2",
+        "--overwrite_output_dir",
+        "--do_eval"]
+
+finetune_src = ScriptRunConfig(source_directory=source_directory,
+                               script="run_classifier.py",
+                               arguments=args,
+                               compute_target=gpu_compute_target,
+                               environment=myenv,
+                               distributed_job_config=mpi)
+
+finetune_src.run_config.node_count = 1
+```
+
+### Final
+```python
+mpi = MpiConfiguration(process_count_per_node=4, node_count=1)
+
+model_checkpoint_path = "tnlrv3-base.pt"
+dataset_path = "glue_data/SST-2/"
+output_path = "outputs/glue-outputs/"
+
+args = ["--model_name_or_path", ds.path(model_checkpoint_path).as_download(),
+        "--task_name", "sst-2",
+        "--tokenizer_name", "./tnlr/tokenizer/tnlr-base-uncased-vocab.txt",
+        "--config_name", "./tnlr/config/tnlr-base-uncased-config.json",
+        "--do-train",
+        "--do-lower-case",
+        "--evaluate_during_training",
+        "--data_dir", default_ds.path(dataset_path).as_mount(),
+        "--output_dir", default_ds.path(output_path).as_mount(),
+        "--max_seq_length", 128,
+        "--per_gpu_train_batch_size", 32,
+        "--learning_rate", 7e-6,
+        "--num_train_epochs", 15.0,
+        "--weight_decay", 0.01,
+        "--fp16",
+        "--fp16_opt_level", "O2",
+        "--overwrite_output_dir",
+        "--do_eval"]
+
+finetune_src = ScriptRunConfig(source_directory=source_directory,
+                               script="run_classifier.py",
+                               arguments=args,
+                               compute_target=gpu_compute_target,
+                               environment=myenv,
+                               distributed_job_config=mpi)
+```
+
+## Example: SuggestedReplies
+https://github.com/microsoft/Turing-NLR/blob/main/notebooks/SuggestedReplies.ipynb
+
+### With 1.13.0
+
+### Final

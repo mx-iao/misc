@@ -162,5 +162,76 @@ finetune_src = ScriptRunConfig(source_directory=source_directory,
 https://github.com/microsoft/Turing-NLR/blob/main/notebooks/SuggestedReplies.ipynb
 
 ### With 1.13.0
+```python
+mpi = MpiConfiguration()
+mpi.process_count_per_node = 4
+
+source_directory = "../examples/suggestedreplies_finetune"
+
+input_data = input_ds.path("final_datasets").as_download(
+    path_on_compute="/turing"
+)
+model_data = input_ds.path("tnlrv3-base.pt").as_download(
+    path_on_compute="/turing"
+)
+output_data = default_ds.path("amlturing/SR").as_mount()
+
+args = ["--cf": "./configs/tnlr_base_config_ort.json",
+        "--model_checkpoint_dir", output_data,
+        "--input_data_dir", input_data,
+        "--model_data_dir", model_data,
+        "--fp16",
+        "--do_train",
+        "--do_valid",
+        "--do_test",
+        "--do_lower_case",
+        "--valid_interval", 2000,
+        "--use_basic_logger",
+        "--writers", "aml"]
+
+src = ScriptRunConfig(source_directory=source_directory,
+                      script="train_ort.py",
+                      arguments=args,
+                      compute_target=gpu_compute_target,
+                      environment=myenv,
+                      distributed_job_config=mpi)
+
+src.run_config.node_count = 4
+```
+
+Note: add args for `--input_data_dir` and `--model_data_dir` and parse in training script.
 
 ### Final
+```python
+mpi = MpiConfiguration(process_count_per_node=4, node_count=4)
+
+source_directory = "../examples/suggestedreplies_finetune"
+
+input_data = input_ds.path("final_datasets").as_download(
+    path_on_compute="/turing"
+)
+model_data = input_ds.path("tnlrv3-base.pt").as_download(
+    path_on_compute="/turing"
+)
+output_data = default_ds.path("amlturing/SR").as_mount()
+
+args = ["--cf": "./configs/tnlr_base_config_ort.json",
+        "--model_checkpoint_dir", output_data,
+        "--input_data_dir", input_data,
+        "--model_data_dir", model_data,
+        "--fp16",
+        "--do_train",
+        "--do_valid",
+        "--do_test",
+        "--do_lower_case",
+        "--valid_interval", 2000,
+        "--use_basic_logger",
+        "--writers", "aml"]
+
+src = ScriptRunConfig(source_directory=source_directory,
+                      script="train_ort.py",
+                      arguments=args,
+                      compute_target=gpu_compute_target,
+                      environment=myenv,
+                      distributed_job_config=mpi)
+```
